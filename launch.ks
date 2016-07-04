@@ -9,14 +9,15 @@
 		print "Startvorbereitungen beendet, beginne Countdown.".
 		
 	//parameter
-
+	
 		parameter orbithoehe is 250.								
 		set orbithoehe to orbithoehe * 1000.						//Wegen den Nullen beim eingeben.
+		
+		parameter endburn is 0.										//Ob er zuende brennen soll
 		
 		parameter incl is abs(latitude).							//Die Steigung unseres Orbits kriegen wir ja eh von der Startrampe abhängig mit, ändern kostet Sprit, orbitalmechanischer schitt.
 		set richtungsweiser to latitude/abs(latitude).				//Um festzulegen in welche Richtung(N/S) wir fliegen.
 
-		parameter endburn is 0.
 	
 //Hauptprogramm
 	

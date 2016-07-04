@@ -10,15 +10,15 @@ if abs(apoapsis-orbitx) > orbitx/500 and abs(periapsis-orbitx) > orbitx/500 {
 	set nextnode:eta to eta:periapsis.
 
 	if apoapsis < orbitx {
-		set ticker to 0.5.
+		set ticker to 1.
 	}
 
 	else {
-		set ticker to -0.5.
+		set ticker to -1.
 	}
 
 	until abs(nextnode:orbit:apoapsis-orbitx) < orbitx/500 or abs(nextnode:orbit:periapsis-orbitx) < orbitx/500 {
-		set nextnode:prograde to nextnode:prograde + ticker.
+		set nextnode:prograde to nextnode:prograde + ticker * random().
 	}
 
 	run maneuvernode.
@@ -29,12 +29,12 @@ if abs(apoapsis-orbitx) > orbitx/500 and abs(periapsis-orbitx) > orbitx/500 {
 	
 }
 	
-if abs(apoapsis-orbitx) > orbitx/500 {
-	set nextnode:eta to eta:periapsis.
+if abs(apoapsis-orbitx) < abs(periapsis-orbitx) {
+	set nextnode:eta to eta:apoapsis.
 }
 
 else {
-	set nextnode:eta to eta:apoapsis.
+	set nextnode:eta to eta:periapsis.
 }
 
 
@@ -42,7 +42,7 @@ else {
 if abs(apoapsis-orbitx) > orbitx/500 or abs(periapsis-orbitx) > orbitx/500 {
 
 	until abs(nextnode:orbit:apoapsis-orbitx) < orbitx/500 and abs(nextnode:orbit:periapsis-orbitx) < orbitx/500 {
-		set nextnode:prograde to nextnode:prograde - 0.5 * ((((nextnode:orbit:periapsis+nextnode:orbit:apoapsis)/2)-orbitx)/abs(((nextnode:orbit:periapsis+nextnode:orbit:apoapsis)/2)-orbitx)).
+		set nextnode:prograde to nextnode:prograde - random() * ((((nextnode:orbit:periapsis+nextnode:orbit:apoapsis)/2)-orbitx)/abs(((nextnode:orbit:periapsis+nextnode:orbit:apoapsis)/2)-orbitx)).
 	}
 	
 	run maneuvernode.

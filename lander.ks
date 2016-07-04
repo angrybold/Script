@@ -1,7 +1,7 @@
 sas off.
 RCS on.
-lock steering to -ship:velocity:surface.
-run burntime(groundspeed).
+lock steering to lookdirup(-ship:velocity:surface,ship:facing:topvector).
+run burntime(velocityat(ship,time:seconds+eta:periapsis):orbit:mag).
 warpto(time:seconds + ETA:periapsis - timeto - 30).
 
 wait until eta:periapsis < timeto + 10.
