@@ -1,22 +1,20 @@
 sas off.
 RCS on.
-lock steering to lookdirup(-ship:velocity:surface,ship:facing:topvector).
-run burntime(velocityat(ship,time:seconds+eta:periapsis):orbit:mag).
-warpto(time:seconds + ETA:periapsis - timeto - 30).
+lock steering to lookdirup(-vcrs(up:vector,vcrs(ship:velocity:orbit,up:vector)),ship:facing:topvector).
+wait 2.
+wait until ship:angularmomentum:mag < 0.01.
 
-wait until eta:periapsis < timeto + 10.
 set ship:control:fore to 1.
-
-wait until ETA:periapsis < timeto .
-set ship:control:fore to 0.
-lock Throttle to 1.
-
-wait until ship:groundspeed < 1.
-lock throttle to 0.
 wait 5.
-stage.
-wait 10.
+set ship:control:fore to 0.
+lock throttle to 1.
+wait 2.
 
+set laststate to ship:groundspeed + 1.
+until laststate < ship:groundspeed {
+	set laststate to ship:groundspeed.
+}
+lock throttle to 0.
 
 lock steering to lookdirup(-orbit:velocity:surface,ship:facing:topvector).
 
@@ -29,7 +27,7 @@ lock steering to lookdirup(-orbit:velocity:surface,ship:facing:topvector).
 	lock currentG to constant:g*body:mass/(altitude+body:radius)^2.
 	lock TTI to max(-ppq/2+SQRT(((ppq/2)^2)-qpq),-ppq/2-SQRT(((ppq/2)^2)-qpq)).
 	lock ppq to abs(verticalspeed) * 2/currentG.
-	lock qpq to -alt:radar*2/currentG.
+	lock qpq to -(alt:radar -3)*2/currentG.
 
 //burntime
 
@@ -39,35 +37,26 @@ lock steering to lookdirup(-orbit:velocity:surface,ship:facing:topvector).
 	lock burnrate to max(0.001,ship:maxthrust) / (ISPcurrent * 9.81).
 	lock burntime to mpropellant/burnrate.
 	
- 
+//Abbremsen
 
-wait until TTI*1.6 < burntime.
-lock throttle to 1.
-
-wait until abs(verticalspeed) < 10.
-lock throttle to 0.
-
-set threshold to 10.
-
-
-until round(verticalspeed,1) = 0 and alt:radar < 10  {
-
-	if alt:radar < 100 {
-		set threshold to 5.
-	}
+	wait until TTI*1.2 < burntime.
+	set ship:control:fore to 1.
 	
-	if alt:radar < 40 {
-		set threshold to 2.5.
-	}
+	wait until TTI*1.6 < burntime.
+	set ship:control:fore to 0.
 	
-	if abs(verticalspeed) >  threshold {
-		lock throttle to 1.
+	until abs(ship:orbit:velocity:surface:mag) < 1 {
+
+		if TTI*1.6 < burntime {
+			lock throttle to 1.
+		}
+		
+		else {
+			lock throttle to 0.9.
+		}
+
 	}
-	
-	else {
-		lock throttle to 0.
-	}
-}
+
 
 
 lock throttle to 0.

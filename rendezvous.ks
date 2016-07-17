@@ -1,20 +1,22 @@
-//
-	Parameter phasenverschiebung is 0.
+//Parameter.
+	
+	Parameter runmode is 1.
+	Parameter sicherheitsabstand is 20.
 	set ziel to target.
-	set zeitverschiebung to ziel:orbit:period/360*phasenverschiebung.
+
 	
 
 //Known State.
+
+	run lib.
 	RCS on.
 	SAS off.
 	
-//Orbit anpassen
+
 	
-	run circorbit((ziel:orbit:periapsis+ziel:orbit:apoapsis)/2).
+//Inclination nullen - Runmode 1
 
-//Inclination nullen
-
-	if abs(ship:orbit:inclination-ziel:orbit:inclination) > 0.05 {
+	if runmode = 1 {
 	
 		Print "Inclination wird angepasst".
 
@@ -22,9 +24,13 @@
 		lock relpos to body:position * angulartarget:direction:inverse.
 		lock relspeed to velocity:orbit * angulartarget:direction:inverse.
 		lock timeto to abs(relpos:z)/abs(relspeed:z).
+		set relspeedvz to 1.
+		if ship:orbit:inclination > 90 {
+			set relspeedvz to -1.
+		}
 		
-		set warp to 5.
-		wait until relpos:z/abs(relpos:z)*relspeed:z/abs(relspeed:z) = -1.
+		set warp to 4.
+		wait until relpos:z/abs(relpos:z)*relspeed:z/abs(relspeed:z) = relspeedvz * -1.
 		set warp to 0.
 
 
@@ -49,8 +55,7 @@
 
 		set warp to 0.
 		RCS on.
-		wait 10.
-		wait until ship:angularmomentum:mag < 0.01.
+		stillstandFK.
 
 
 		set tempo to 40.
@@ -79,13 +84,8 @@
 			
 			if abs(relspeed:z) > tempo {
 				
-				if abs(relspeed:z) < 5 {
-					set ship:control:fore to 1.
-				}
+				set ship:control:fore to 1.
 				
-				else {
-					lock throttle to 1.
-				}
 			}
 			
 			else {
@@ -99,313 +99,216 @@
 		}
 		
 		set ship:control:neutralize to true.
+		set runmode to 2.
 		
+		Print "Inclination im Rahmen".
 	}
 	
-	Print "Inclination im Rahmen".
+	
+	
+
+//Orbit anpassen - 		Runmode 2
+	
+	if runmode = 2 {
+		print "Passe Orbits an".
+		run circorbit((ziel:orbit:periapsis+ziel:orbit:apoapsis)/2).
+		set runmode to 3.
+	}
 
 	
-//Abpassen
+//Abpassen - 			Runmode 3
 	
-	Print "Passe Ziel ab".
-	
-	lock steering to lookdirup(ship:orbit:velocity:orbit,ship:facing:topvector).
-	wait 2.
-	wait until ship:angularmomentum:mag < 0.01.
-	
-	set tposdif to ziel:orbit:trueanomaly + ziel:orbit:argumentofperiapsis - ship:orbit:argumentofperiapsis - ship:orbit:trueanomaly.
-	if tposdif > 360 {set tposdif to tposdif - 360.}
-	set ttimedif to -ship:orbit:period * tposdif / 360 * (ship:orbit:period /ziel:orbit:period) + zeitverschiebung.
-	set ttimeshift to (ziel:orbit:period - ship:orbit:period) * (ship:orbit:period /ziel:orbit:period).
-	set n to 0.00000000001.
-
-
-	until abs(ttimedif)/n < ship:orbit:period / 100 or abs(ship:orbit:period-ttimedif)/n < ship:orbit:period / 100{
+	if runmode = 3 {
+		Print "Passe Ziel ab".
 		
-		set n to n + 1.
-		set ttimedif to ttimedif + ttimeshift.
-		if ttimedif > ship:orbit:period {
-			set ttimedif to ttimedif - ship:orbit:period.
+		lock steering to lookdirup(ship:orbit:velocity:orbit,ship:facing:topvector).
+		stillstandFK.
+		
+		set tposdif to ziel:orbit:trueanomaly + ziel:orbit:argumentofperiapsis - ship:orbit:argumentofperiapsis - ship:orbit:trueanomaly.
+		if tposdif > 360 {set tposdif to tposdif - 360.}
+		set ttimedif to -ship:orbit:period * tposdif / 360 * (ship:orbit:period /ziel:orbit:period) + zeitverschiebung.
+		set ttimeshift to (ziel:orbit:period - ship:orbit:period) * (ship:orbit:period /ziel:orbit:period).
+		set n to 0.00000000001.
+
+
+		until abs(ttimedif)/n < ship:orbit:period / 100 or abs(ship:orbit:period-ttimedif)/n < ship:orbit:period / 100{
+			
+			set n to n + 1.
+			set ttimedif to ttimedif + ttimeshift.
+			if ttimedif > ship:orbit:period {
+				set ttimedif to ttimedif - ship:orbit:period.
+			}
+			else if ttimedif < 0 {
+				set ttimedif to ttimedif + ship:orbit:period.
+			}
 		}
-		else if ttimedif < 0 {
-			set ttimedif to ttimedif + ship:orbit:period.
+		
+		print ttimedif.
+		print abs(ship:orbit:period-ttimedif).
+		
+		if ttimedif/n < ship:orbit:period / 100 {
+			set tvz to 1.
 		}
-	}
-	
-	print ttimedif.
-	print abs(ship:orbit:period-ttimedif).
-	
-	if ttimedif/n < ship:orbit:period / 100 {
-		set tvz to 1.
-	}
 
-	else {
-		set tvz to -1.
-	}
-
-
-	set timechange to min(abs(ship:orbit:period-ttimedif)/n,ttimedif/n).
-
-	print n .
-	print timechange.
-	set desperiod to ship:orbit:period + tvz*timechange.
-	lock steering to lookdirup(ship:orbit:velocity:orbit,ship:facing:topvector).
-	wait 5.
-	wait until ship:angularmomentum:mag < 0.01.
-	RCS on.
-
-	until abs(ship:orbit:period - desperiod) < 0.001 {
-		if ship:orbit:period < desperiod {
-			set ship:control:fore to 1.
-			print abs(ship:orbit:period - desperiod).
-		}
 		else {
-			set ship:control:fore to -1.
-			print abs(ship:orbit:period - desperiod).
+			set tvz to -1.
 		}
-	}
 
-	set ship:control: neutralize to true.
 
-	wait 2.
+		set timechange to min(abs(ship:orbit:period-ttimedif)/n,ttimedif/n).
 
-	warpto(time:seconds + n * ship:orbit:period - 200).
-	set warpmark to time:seconds + n * ship:orbit:period - 200.
+		print n .
+		print timechange.
+		set desperiod to ship:orbit:period + tvz*timechange.
+		RCS on.
+		lock steering to lookdirup(ship:orbit:velocity:orbit,ship:facing:topvector).
+		stillstandFK.
 	
-	
-//Abbremsen und in die Nähe bringen
-	
-	wait until time:seconds > warpmark.
-	lock trgtspeedvec to (ship:orbit:velocity:orbit-ziel:orbit:velocity:orbit).
-	lock steering to lookdirup(-trgtspeedvec,ship:facing:topvector).
-	wait 10.
-	wait until ship:angularmomentum:mag < 0.01.
-	
-	set lastdist to ziel:position:mag + 1000.
-	until lastdist < ziel:position:mag {
-		set lastdist to ziel:position:mag.
-	}
-	
-	lock throttle to 1.
-	wait until trgtspeedvec:mag < 0.5.
-	lock throttle to 0.
-	
-	set repeat to 1.
-	
-	until ziel:position:mag < 190 {
-	
-		lock steering to lookdirup(ziel:position,ship:facing:topvector).
+
+		until abs(ship:orbit:period - desperiod) < 0.001 {
+			if ship:orbit:period < desperiod {
+				set ship:control:fore to 1.
+				print abs(ship:orbit:period - desperiod).
+			}
+			else {
+				set ship:control:fore to -1.
+				print abs(ship:orbit:period - desperiod).
+			}
+		}
+
+		set ship:control: neutralize to true.
+
 		wait 2.
-		wait until ship:angularmomentum:mag < 0.01.
+
+		warpto(time:seconds + n * ship:orbit:period - 200).
+		set warpmark to time:seconds + n * ship:orbit:period - 50.
+		wait until time:seconds > warpmark.
+		set runmode to 4.
+	}	
+	
+
+//Abbremsen und in die Nähe bringen - Runmode 4
+	
+	lock relgeschwindigkeit to (ship:orbit:velocity:orbit-ziel:orbit:velocity:orbit).
+	lock zielvector to ziel:position.
+	
+	if runmode = 4 {
 		
-		set ship:control:fore to 1.
-		wait until trgtspeedvec:mag > 5/repeat or ziel:position:mag < 200 .
-		set ship:control:fore to 0.
+		lock steering to lookdirup(-relgeschwindigkeit,ship:facing:topvector).
+		stillstandFK.
 		
-		lock steering to lookdirup(trgtspeedvec,ship:facing:topvector).
-		wait 2.
-		wait until ship:angularmomentum:mag <0.01.
+		wait until zielvector:mag < 10000.
+		set maneuvergeschwindigkeit to relgeschwindigkeit:mag.
+		lock differenzvector to zielvector:normalized - relgeschwindigkeit/maneuvergeschwindigkeit.
 		
-		set lastdist to ziel:position:mag + 10.
-		until lastdist < ziel:position:mag or ziel:position:mag < 180{
-			set lastdist to ziel:position:mag.
+		
+		
+		until relgeschwindigkeit:mag < 0.5 {	
+		
+			if vang(relgeschwindigkeit, zielvector) < 1 and abs(relgeschwindigkeit:mag-maneuvergeschwindigkeit) < 0.1 {
+				set ship:control:neutralize to true.
+			}
+	
+			else {
+				translate(differenzvector).
+			}
+	
+			if 	zielvector:mag 	< 200 	lock throttle to 1.	
+			
 		}
 		
-		set warp to 0.
-		
-		wait 2.
-		wait until ship:angularmomentum:mag <0.01.
-		set ship:control:fore to -1.
-		
-		wait until trgtspeedvec:mag < 0.1.
-		set ship:control:fore to 0.
-		
-		set repeat to repeat*2.
+		lock throttle to 0.
+		unlock steering.
+		set ship:control:neutralize to true.
+		set runmode to 5.
 	}
-	
-	
 
 
-//Andocken
-
-	run portauswahl.ks.
-	set portliste to waehleports().
-	set meinport to portliste[0].
-	set deinport to portliste[1].
-
+//Andocken - Runmode 5
 	
-	set rota to 0.
-	
-	on ag4 {
-		set vorabstand to 0.
-	}
-	on ag5 {
-		set rota to rota - 15.
-		preserve.
-	}
-	on ag6 {
-		set rota to rota + 15.
-		preserve.
-	}
-	
-	set close to 0.
-	set vorabstand to -100.
-	set dividentx to 8.
-	set dividenty to 8.
-	set dividentz to 8.
-	set speedx to 1.
-	set speedy to 1.
-	set speedz to 1.
-	
-	lock steering to lookdirup(-deinport:portfacing:vector:normalized,deinport:facing:topvector * R(0,0,rota)).
-	wait 2.
-	wait until ship:angularmomentum:mag < 0.01.
-	
-	lock relpos to deinport:position * deinport:portfacing:inverse * -R(0,0,rota).
-	lock relspeed to (ship:orbit:velocity:orbit-ziel:orbit:velocity:orbit) * deinport:portfacing:inverse * -R(0,0,rota).
-	
-	lock seitvz to relpos:x/abs(relpos:x).
-	lock hochvz to relpos:y/abs(relpos:y).
-	lock vorvz to (relpos:z - vorabstand)/abs(relpos:z - vorabstand).
-	
-	
-	if relpos:y > 0 {
-		set ship:control:starboard to -relspeed:x/abs(relspeed:x).
-		wait until abs(relspeed:x) > 1 or abs(relpos:x) > 100.
-		set ship:control:starboard to 0.
-		wait until abs(relpos:x) > 100.
-		set ship:control:starboard to relspeed:x/abs(relspeed:x).
-		wait until abs(relspeed:x) < 0.1.
-		set ship:control:fore to -1.
-		wait until relspeed:z > 1 or abs(relpos:z-vorabstand/2) < 10.
-	}
-	
-	until false {
-	
-
-		//seitwärts
+	if runmode = 5 {
+		set portliste to waehleports().
+		set meinport to portliste[0].
+		set deinport to portliste[1].
+		set maneuvergeschwindigkeit to 1.
+		lock nodevector to deinport:nodeposition-meinport:nodeposition.
+		lock relpos to -nodevector * deinport:portfacing:inverse.
+		lock differenzvector to zielvector:normalized - relgeschwindigkeit/maneuvergeschwindigkeit.
 		
-			if abs(relpos:x) < 1  {
-				set speedx to 0.1.
-				set dividentx to 1.
-			}
-			
-			else if abs(relpos:x) < 5  {
-				set speedx to 0.5.
-				set dividentx to 4.
-			}			
-			
-			else if abs(relpos:x) < 20  {
-				set speedx to 1.
-				set dividentx to 4.
-			}			
+		lock steering to lookdirup(-deinport:portfacing:vector:normalized,deinport:facing:topvector).
+		wait 20.
 		
-			else if abs(relpos:x) < 100 {
-				set speedx to 2.
-				set dividentx to 8.
-			}
+		if nodevector:mag < sicherheitsabstand {
 			
-
-
+			print "check1".
+			lock zielvector to nodevector - nodevector:normalized * sicherheitsabstand.
 			
-			if abs(relspeed:x-speedx * seitvz) > speedx/dividentx {
-			
-				if relspeed:x > speedx * seitvz {
-					set ship:control:starboard to 1.
+			until zielvector:mag < 1 {
+				if vang(relgeschwindigkeit, zielvector) < 1 and abs(relgeschwindigkeit:mag-maneuvergeschwindigkeit) < 0.1 {
+					set ship:control:neutralize to true.
 				}
 				
 				else {
-					set ship:control:starboard to -1.
+					translate(differenzvector).
 				}
+				
+				maneuvergeschwindigkeitFK(zielvector).
 			}
-			
-			else {
-					set ship:control:starboard to 0.
-			}
-			
-			
-		//hoch
+		}
 		
-			if abs(relpos:y) < 1  {
-				set speedy to 0.1.
-				set dividenty to 1.
-			}
-
-			else if abs(relpos:y) < 5  {
-				set speedy to 0.5.
-				set dividenty to 4.
-			}			
-			
-			else if abs(relpos:y) < 20  {
-				set speedy to 1.
-				set dividenty to 8.
-			}			
-
-			else if abs(relpos:y) < 100 {
-				set speedy to 2.
-				set dividenty to 8.
-			}
-			
-
-
-			
-			if abs(relspeed:y-speedy * hochvz) > speedy/dividenty {
-			
-				if relspeed:y > speedy * hochvz {
-					set ship:control:top to -1.
+		set ship:control:neutralize to true.
+		
+		if relpos:z < 0 {
+      
+            print "check2".
+			lock zielvector to nodevector + vcrs(deinport:portfacing:forevector, vcrs(deinport:portfacing:forevector,nodevector)):normalized * sicherheitsabstand.
+			until zielvector:mag < 1 {
+				if vang(relgeschwindigkeit, zielvector) < 1 and abs(relgeschwindigkeit:mag-maneuvergeschwindigkeit) < 0.1 {
+					set ship:control:neutralize to true.
 				}
 				
 				else {
-					set ship:control:top to 1.
+					translate(differenzvector).
 				}
+				
+				maneuvergeschwindigkeitFK(zielvector).
 			}
-			
-			else {
-				set ship:control:top to 0.
-			}
-			
-		
-		//vorne
-		
-			if abs(relpos:z  - vorabstand) < 1   {
-				set speedz to 0.1.
-				set dividentz to 1.
-			}		
-			
-			else if abs(relpos:z  - vorabstand) < 5   {
-				set speedz to 0.2.
-				set dividentz to 4.
-			}		
-
-			else if abs(relpos:z  - vorabstand) < 20 {
-				set speedz to 0.5.
-				set dividentz to 8.
-			}			
-		
-			else if abs(relpos:z  - vorabstand) < 100   {
-				set speedz to 1.
-				set dividentz to 8.
-			}
-			
-
-			
-			if abs(relspeed:z-speedz * vorvz) > speedz/dividentz {
-			
-				if relspeed:z > speedz * vorvz {
-					set ship:control:fore to 1.
+		}
+        
+        set ship:control:neutralize to true.
+           
+			print "check3".
+         	lock zielvector to nodevector + deinport:portfacing:forevector:normalized * sicherheitsabstand.
+			until zielvector:mag < 0.5 {
+				if vang(relgeschwindigkeit, zielvector) < 1 and abs(relgeschwindigkeit:mag-maneuvergeschwindigkeit) < 0.1 {
+					set ship:control:neutralize to true.
 				}
 				
 				else {
-					set ship:control:fore to -1.
+					translate(differenzvector).
 				}
+				
+				maneuvergeschwindigkeitFK(zielvector).
 			}
 			
-			else {
-				set ship:control:fore to 0.
-			}
+			set ship:control:neutralize to true.
+
+			print "check4".
+         	lock zielvector to nodevector.
+			until nodevector:mag < 0.1 {
+				if vang(relgeschwindigkeit, zielvector) < 1 and abs(relgeschwindigkeit:mag-maneuvergeschwindigkeit) < 0.1 {
+					set ship:control:neutralize to true.
+				}
 				
+				else {
+					translate(differenzvector).
+				}
+				
+				maneuvergeschwindigkeitFK(zielvector).
+			}			
+		
+		set ship:control:neutralize to true.
 	}
-
 
 
 

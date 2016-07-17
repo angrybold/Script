@@ -6,12 +6,13 @@
 		set ship:control:pilotmainthrottle to 0.
 		RCS off.
 		SAS off.
+		run lib.
 		print "Startvorbereitungen beendet, beginne Countdown.".
 		
 	//parameter
 	
-		parameter orbithoehe is 250.								
-		set orbithoehe to orbithoehe * 1000.						//Wegen den Nullen beim eingeben.
+		parameter orbitx is 250.								
+		set orbitx to orbitx * 1000.						//Wegen den Nullen beim eingeben.
 		
 		parameter endburn is 0.										//Ob er zuende brennen soll
 		
@@ -24,7 +25,7 @@
 	//Countdown, Zündung, Schubaufbau, Startrampe klären
 	
 		set counter to 10.
-		until counter <= 0 and thrustcheck = 1 {
+		until counter <= 1 and thrustcheck = 1 {
 		
 				if counter = 5 {
 					stage.
@@ -56,7 +57,7 @@
 			
 			
 			
-	//Steureung bis Orbit	
+	//Steuerung bis Orbit	
 
 		set hori to 90.
 		set vert to 90.
@@ -76,13 +77,13 @@
 							stage.
 							wait 1.
 							set boostcheck to 1.
-							print "check".
+							print "Booster entkoppelt.".
 						}
 					}
 				}
 				
-				if apoapsis/orbithoehe < 0.9 {
-					set vert to 90-90*apoapsis/(orbithoehe*1.2).
+				if apoapsis/orbitx < 0.9 {
+					set vert to 90-90*apoapsis/(orbitx*1.2).
 				}
 					else {
 						set vert to 0.
@@ -97,7 +98,7 @@
 				}
 				
 				else {
-					set hori to 90+incl+30.							//Erstmal die Richtige Richtung einschlagen.
+					set hori to 90+richtungsweiser*(incl+30).							//Erstmal die Richtige Richtung einschlagen.
 				}
 			
 			
@@ -119,11 +120,22 @@
 			
 			
 
-			until nextnode:orbit:periapsis/nextnode:orbit:apoapsis > 0.99 {						//Setze hier einen Knoten auf die Apoapsis und lasse diese Flugbahn zirkulieren.
-				set nextnode:prograde to nextnode:prograde  + 1*(1-((nextnode:orbit:apoapsis+nextnode:orbit:periapsis)/2/apoapsis)) + 1*(1-((nextnode:orbit:apoapsis+nextnode:orbit:periapsis)/2/apoapsis))/abs((1-((nextnode:orbit:apoapsis+nextnode:orbit:periapsis)/2/apoapsis))) .
+			set tvz to 1.
+			set ticker to 128.
+			set laststate to abs(nextnode:orbit:apoapsis/nextnode:orbit:periapsis) + 1.
+
+			until ticker < 0.5 {
+
+				if laststate < abs(nextnode:orbit:apoapsis-nextnode:orbit:periapsis) {
+					set ticker to ticker/2.
+					set tvz to tvz * -1.
+				}
+				set laststate to abs(nextnode:orbit:apoapsis-nextnode:orbit:periapsis).
+				set nextnode:prograde to nextnode:prograde + ticker * tvz.
+
 			}
 			
-			run burntime.															//Errechnet, wie lange der Burn dauern wird.
+			burntimeFK.															//Errechnet, wie lange der Burn dauern wird.
 			
 			wait until burntime/3*2 > nextnode:eta.									//Wartet, bis ein Schwellenwert erreicht is, zündet dann.
 			
@@ -132,8 +144,34 @@
 			wait 0.2.
 			lock throttle to 1.
 			rcs off.
+			set laststate2 to abs(apoapsis-periapsis)+1.
 			
-			wait until nextnode:deltav:mag < 2.
+			until abs(apoapsis-periapsis) > laststate2 {
+
+				if abs(eta:apoapsis-nextnode:eta) > 5 {
+				
+					set nextnode:eta to eta:apoapsis.
+					set tvz to 1.
+					set ticker to 32.
+					set laststate to abs(nextnode:orbit:apoapsis/nextnode:orbit:periapsis) + 1.
+
+					until ticker < 0.5 {
+
+						if laststate < abs(nextnode:orbit:apoapsis-nextnode:orbit:periapsis) {
+							set ticker to ticker/2.
+							set tvz to tvz * -1.
+						}
+						
+					set laststate to abs(nextnode:orbit:apoapsis-nextnode:orbit:periapsis).
+					set nextnode:prograde to nextnode:prograde + ticker * tvz.
+				
+					}
+
+				}
+				
+				burntimeFK.									
+				set laststate2 to abs(apoapsis-periapsis).
+			}
 
 			if endburn = 0 {
 				lock steering to lookdirup(ship:orbit:velocity:orbit,ship:facing:topvector).

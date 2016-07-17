@@ -5,20 +5,24 @@ add node(0,0,0,0).
 wait 0.01.
 
 
-if abs(apoapsis-orbitx) > orbitx/500 and abs(periapsis-orbitx) > orbitx/500 {
+if abs(apoapsis-orbitx) > 1000 and abs(periapsis-orbitx) > 1000 {
 	
 	set nextnode:eta to eta:periapsis.
+	set avorbit to (periapsis+orbitx)/2.
+	set ticker to 100.
+	set vz to 1.
+	set laststate to 0.
 
-	if apoapsis < orbitx {
-		set ticker to 1.
-	}
-
-	else {
-		set ticker to -1.
-	}
-
-	until abs(nextnode:orbit:apoapsis-orbitx) < orbitx/500 or abs(nextnode:orbit:periapsis-orbitx) < orbitx/500 {
-		set nextnode:prograde to nextnode:prograde + ticker * random().
+	until abs(nextnode:orbit:apoapsis-orbitx) < 1000 or abs(nextnode:orbit:periapsis-orbitx) < 1000 {
+	
+		if laststate < abs(((nextnode:orbit:apoapsis+nextnode:orbit:periapsis)/2) - avorbit) {
+			set ticker to ticker/2.
+			set vz to vz * -1.
+		}
+		
+		set laststate to abs(((nextnode:orbit:apoapsis+nextnode:orbit:periapsis)/2) - avorbit).
+		set nextnode:prograde to nextnode:prograde + vz * ticker.
+		
 	}
 
 	run maneuvernode.
@@ -39,10 +43,23 @@ else {
 
 
 
-if abs(apoapsis-orbitx) > orbitx/500 or abs(periapsis-orbitx) > orbitx/500 {
+if abs(apoapsis-orbitx) > 1000 or abs(periapsis-orbitx) > 1000 {
 
-	until abs(nextnode:orbit:apoapsis-orbitx) < orbitx/500 and abs(nextnode:orbit:periapsis-orbitx) < orbitx/500 {
-		set nextnode:prograde to nextnode:prograde - random() * ((((nextnode:orbit:periapsis+nextnode:orbit:apoapsis)/2)-orbitx)/abs(((nextnode:orbit:periapsis+nextnode:orbit:apoapsis)/2)-orbitx)).
+	set ticker to 100.
+	set vz to 1.
+	set laststate to 0.
+	
+	until abs((nextnode:orbit:apoapsis + nextnode:orbit:periapsis)/2 - orbitx) < 1000 {
+	
+		if laststate < abs((nextnode:orbit:apoapsis + nextnode:orbit:periapsis)/2 - orbitx) {
+		
+			set ticker to ticker/2.
+			set vz to vz * -1.
+			
+		}
+		
+		set laststate to abs((nextnode:orbit:apoapsis + nextnode:orbit:periapsis)/2 - orbitx).
+		set nextnode:prograde to nextnode:prograde + vz * ticker.
 	}
 	
 	run maneuvernode.
