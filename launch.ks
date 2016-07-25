@@ -11,10 +11,10 @@
 		
 	//parameter
 	
-		parameter orbitx is 250.								
+		parameter orbitx is 300.								
 		set orbitx to orbitx * 1000.						//Wegen den Nullen beim eingeben.
 		
-		parameter endburn is 0.										//Ob er zuende brennen soll
+		parameter endburn is 1.										//Ob er zuende brennen soll
 		
 		parameter incl is abs(latitude).							//Die Steigung unseres Orbits kriegen wir ja eh von der Startrampe abhängig mit, ändern kostet Sprit, orbitalmechanischer schitt.
 		set richtungsweiser to latitude/abs(latitude).				//Um festzulegen in welche Richtung(N/S) wir fliegen.
@@ -25,7 +25,7 @@
 	//Countdown, Zündung, Schubaufbau, Startrampe klären
 	
 		set counter to 10.
-		until counter <= 1 and thrustcheck = 1 {
+		until counter < 2 and thrustcheck = 1 {
 		
 				if counter = 5 {
 					stage.
@@ -36,7 +36,7 @@
 					list engines in englist.
 					set thrustcheck to 1.
 					for eng in englist {
-						if eng:ignition = true and eng:thrust/eng:availablethrust < 0.98 {
+						if eng:ignition = true and eng:thrust/eng:availablethrust < 0.90 {
 							set thrustcheck to 0.
 						}
 					}
@@ -57,7 +57,7 @@
 			
 			
 			
-	//Steuerung bis Orbit	
+	//Erste Stage	
 
 		set hori to 90.
 		set vert to 90.
@@ -135,43 +135,17 @@
 
 			}
 			
-			burntimeFK.															//Errechnet, wie lange der Burn dauern wird.
+			burntimeFK().															//Errechnet, wie lange der Burn dauern wird.
 			
-			wait until burntime/3*2 > nextnode:eta.									//Wartet, bis ein Schwellenwert erreicht is, zündet dann.
+			wait until burntime/2 > nextnode:eta.									//Wartet, bis ein Schwellenwert erreicht is, zündet dann.
 			
 			stage.																	//Wegen Ullageboostern leicht zeitversetzt.
 			print "Ullage-Booster gezündet, aktiviere zweite Stufe.".
-			wait 0.2.
+			wait 2.
 			lock throttle to 1.
 			rcs off.
-			set laststate2 to abs(apoapsis-periapsis)+1.
-			
-			until abs(apoapsis-periapsis) > laststate2 {
-
-				if abs(eta:apoapsis-nextnode:eta) > 5 {
-				
-					set nextnode:eta to eta:apoapsis.
-					set tvz to 1.
-					set ticker to 32.
-					set laststate to abs(nextnode:orbit:apoapsis/nextnode:orbit:periapsis) + 1.
-
-					until ticker < 0.5 {
-
-						if laststate < abs(nextnode:orbit:apoapsis-nextnode:orbit:periapsis) {
-							set ticker to ticker/2.
-							set tvz to tvz * -1.
-						}
-						
-					set laststate to abs(nextnode:orbit:apoapsis-nextnode:orbit:periapsis).
-					set nextnode:prograde to nextnode:prograde + ticker * tvz.
-				
-					}
-
-				}
-				
-				burntimeFK.									
-				set laststate2 to abs(apoapsis-periapsis).
-			}
+			wait 5.
+			wait until apoapsis > 1.2 orbitx.
 
 			if endburn = 0 {
 				lock steering to lookdirup(ship:orbit:velocity:orbit,ship:facing:topvector).

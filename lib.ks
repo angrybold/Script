@@ -12,33 +12,11 @@
 					if transvec:mag > 1 set transvec to transvec:normalized.
 					
 					
-					set forestash 	to 	forestash	+	transvec * ship:facing:forevector.
-					set starstash 	to 	starstash	+	transvec * ship:facing:starvector.
-					set topstash 	to 	topstash	+	transvec * ship:facing:topvector.
-					
-					if abs(forestash) > 50 {
-						set ship:control:fore to 		forestash/abs(forestash)	*	min(abs(forestash)/100,1).
-						set forestash to forestash - 	forestash/abs(forestash)	*	min(abs(forestash)/100,1).
-					}
-					else set ship:control:fore to 0.
-					
-					if abs(starstash) > 50 {
-						set ship:control:starboard to 	starstash/abs(starstash)	*	min(abs(starstash)/100,1).
-						set starstash to starstash - 	starstash/abs(starstash)	*	min(abs(starstash)/100,1).
-					}	
-					else set ship:control:starboard to 0.	
-					
-					if abs(topstash) > 50 {
-						set ship:control:top to 		topstash/abs(topstash)	*		min(abs(topstash)/100,1).
-						set topstash to topstash - 		topstash/abs(topstash)	*		min(abs(topstash)/100,1).
-					}	
-					else set ship:control:top to 0.
+					set ship:control:fore 	to 		min(1,transvec * ship:facing:forevector).
+					set ship:control:starboard to	min(1,transvec * ship:facing:starvector).
+					set ship:control:top	to		min(1,transvec * ship:facing:topvector).
 					
 				}
-				
-				set forestash 	to 0.
-				set starstash 	to 0.
-				set topstash 	to 0.
 				
 				
 		//Berechnet wie lange ein Burn für einen Wert dV bei aktueller Motorenkonfiguaration benötigt.
@@ -46,14 +24,15 @@
 		
 				function burntimeFK {
 					parameter dV is nextnode:deltav:mag.
-					run ISPcurrent.
+					set ispcurrent to ispcurrentFK().
 					if ship:maxthrust > 0 {
-						set mfinal to ship:mass * constant:E^(-dV / (ISPcurrent * 9.81)).
+						set mfinal to ship:mass * constant:E^(-dV / (ispcurrent * 9.81)).
 						set mpropellant to ship:mass - mfinal.
-						set burnpt to ship:maxthrust / (ISPcurrent * 9.81).
+						set burnpt to ship:maxthrust / (ispcurrent * 9.81).
 						set burntime to mpropellant/burnpt.
 					}	
 					set timeto to burntime/2.
+					return timeto.
 				}
 				
 				
@@ -67,9 +46,10 @@
 					for eng in engineList {
 						if eng:ignition = true {
 							set totalenginethrust to totalenginethrust + eng:maxthrust.
-							set ISPcurrent to ((eng:vacuumISP*eng:maxthrust)+(ISPcurrent* (totalenginethrust-eng:maxthrust))) /totalenginethrust.
+							set ispcurrent to ((eng:vacuumISP*eng:maxthrust)+(ISPcurrent* (totalenginethrust-eng:maxthrust))) /totalenginethrust.
 						}
 					}	
+					return ispcurrent.
 				}	
 
 				
@@ -77,6 +57,8 @@
 		
 		
 				function stillstand {	
+				
+					parameter threshold is 0.5.
 					
 					set wert1 to 1.
 					set wert2 to 1.
@@ -86,13 +68,14 @@
 				
 					wait 2.
 
-					until (wert1+wert2+wert3+wert4+wert5) / 5 < 0.05 {
+					until wert1 < threshold and wert2 < threshold and wert3 < threshold and wert4 < threshold and wert5 < threshold {
 						wait 0.4.
 						set wert5 to wert4.
 						set wert4 to wert3.
 						set wert3 to wert2.
 						set wert2 to wert1.
 						set wert1 to ship:angularmomentum:mag.
+						
 					}
 				}
 
@@ -105,12 +88,14 @@
 					SAS off.
 
 					set ship:control:neutralize to true.
-					burntime.
+					set timeto to burntimeFK().
 
 					WARPTO(time:seconds + nextnode:eta - timeto - 60).
+					
+					print timeto + 10.
 
 					lock steering to lookdirup(nextnode:deltav,ship:facing:topvector).
-					stillstand.
+					stillstand().
 
 					if nextnode:deltav:mag > 10 {
 						wait until nextnode:eta < timeto + 10.
@@ -125,21 +110,24 @@
 					lock throttle to 0.
 					set ship:control:fore to 1.
 
-					wait until nextnode:deltav:mag < 5.
 					set maneuvervec to nextnode:deltav.
 					lock steering to lookdirup(maneuvervec,ship:facing:topvector).
-
-					set lastmag to 99999999.
-					until nextnode:deltav:mag > 0.1 {
+					
+					
+					until nextnode:deltav:mag < 0.1 {
+						
 						translate(nextnode:deltav).
 					}
 
-
+					
+					
+					
 					set ship:control:fore to 0.
 					unlock steering.
 					remove nextnode.
 					lock throttle to 0.
 				}
+				
 				
 		// Gibt eine Liste freier Andockports des spezifizierten Typs (bzw. "egal") zurueck.
 		
@@ -294,7 +282,11 @@
 					if 	distanz 		> 2 		set maneuvergeschwindigkeit to 0.5.	
 					if 	distanz 		> 20 		set maneuvergeschwindigkeit to 1.	
 					if 	distanz			> 80 		set maneuvergeschwindigkeit to 3.	
-					if 	distanz 		> 200 		set maneuvergeschwindigkeit to 5.
+					if 	distanz 		> 250 		set maneuvergeschwindigkeit to 5.
+					if 	distanz			> 1000		set maneuvergeschwindigkeit to 10.
+					if 	distanz			> 5000		set maneuvergeschwindigkeit to 25.
+					
+					return maneuvergeschwindigkeit.
 				
 				}
 
@@ -308,8 +300,205 @@
 					parameter geschwindigkeit is 1.
 					
 					set timeto to distanz / geschwindigkeit.
+					return timeto.
 					
 				}
 
+				
+		//überprüft ob es bereit eine Node gibt.
 
+				function hasnextnode {
+					local testnode is node(time:seconds + 60*60*6*10000, 1 , 1, 1).
+					add testnode.
+					if nextnode = testnode {
+						remove testnode.
+						return false.
+					}
+					else {
+						remove testnode.
+						return true.
+					}
+				}
+		
+		
+		//Passt die Inklination an.
+		
+		
+				function inclination{
+				
+					Print "Inclination wird angepasst".
+					parameter ziel is target.
+					
+					lock angulartarget to vcrs(ziel:velocity:orbit,ziel:position-ship:body:position):normalized.
+					set ticker to ship:orbit:period / 32.
+					set zeit to time:seconds + (ship:orbit:period/4) - (ship:orbit:period / 32).
+					lock predicposition to positionat(ship, zeit) - body:position.
+					lock predicquer to abs(predicposition * angulartarget).
+					set laststate to  predicquer + 1.
+					
+					until abs(ticker) < 1 {
+					
+						if laststate < predicquer{
+							set ticker to ticker/-2.
+						}
+						set laststate to predicquer.
+						set zeit to zeit+ticker.
+					}
+					
+					add node(zeit,0,0,0).
+					set navvec to -velocityat(ship,zeit):orbit * angulartarget * angulartarget:normalized.
+					set nextnode:prograde to navvec * -velocityat(ship,zeit):orbit:normalized.
+					set nextnode:normal to navvec * vcrs(-velocityat(ship,zeit):orbit, up:vector):normalized.
+					set nextnode:radialout to navvec * vcrs(vcrs(-velocityat(ship,zeit):orbit, up:vector):normalized, -velocityat(ship,zeit):orbit):normalized.
+					maneuvernode().
+					
+				}
+		
+		
+		
+		//Macht einen Runden Orbit in definierter Höhe
+		
+		
+				function circorbit {
+				
+					parameter orbitx is (periapsis + apoapsis)/2.
+					
+					if periapsis > orbitx {
+						set orbitx to orbitx - 1000.
+						add node(0,0,0,0).
+						wait 0.1.
+						set nextnode:eta to eta:apoapsis.
+						set ticker to -32.
+						set laststate to abs(nextnode:orbit:periapsis-orbitx) + 1.
+						
+						until abs(ticker) < 0.1 {
+							if laststate < abs(nextnode:orbit:periapsis-orbitx) {
+								set ticker to ticker/-2.
+							}
+							set laststate to abs(nextnode:orbit:periapsis-orbitx).
+							set nextnode:prograde to nextnode:prograde + ticker.				
+						}
+						set orbitx to orbitx + 1000.
+						maneuvernode().
+					}
+					
+					if apoapsis < orbitx {
+						set orbitx to orbitx + 1000.
+						add node(0,0,0,0).
+						wait 0.1.
+						set nextnode:eta to eta:periapsis.
+						set ticker to 32.
+						set laststate to abs(nextnode:orbit:apoapsis-orbitx) + 1.
+						
+						until abs(ticker) < 0.1 {
+							if laststate < abs(nextnode:orbit:apoapsis-orbitx) {
+								set ticker to ticker/-2.
+							}
+							set laststate to abs(nextnode:orbit:apoapsis-orbitx).
+							set nextnode:prograde to nextnode:prograde + ticker.
+							wait 1.
+						}
+						set orbitx to orbitx - 1000.	
+						maneuvernode().
+					}
+					
+					set ticker to ship:orbit:period / 32.
+					set zeit to time:seconds + (ship:orbit:period/4) - (ship:orbit:period / 32).
+					lock predicposition to positionat(ship, zeit) - body:position.
+					lock predicthoehe		to predicposition:mag - body:radius.
+					set laststate 		to abs(orbitx-predicthoehe) + 1.
+				
+					until ticker < 1 {
+						if laststate < abs(orbitx-predicthoehe) {
+							set ticker to ticker /-2.
+						}
+						set laststate to abs(orbitx-predicthoehe).
+						set zeit to zeit + ticker.
+					}
+				
+					add node(zeit,0,0,0).
+					wait 0.1.
+					set nextnode:radialout to -velocityat(ship,zeit):orbit * predicposition:normalized.
+					
+					set ticker to 1.
+					set laststate to abs(nextnode:orbit:periapsis-nextnode:orbit:apoapsis) + 1.
+					
+					until abs(ticker) < 0.001 {
+						if laststate < abs(nextnode:orbit:periapsis-nextnode:orbit:apoapsis) {
+							set ticker to ticker / -2.
+						}
+						set laststate to abs(nextnode:orbit:periapsis-nextnode:orbit:apoapsis).
+						set nextnode:prograde to nextnode:prograde + ticker.
+					}
+					
+					maneuvernode().
+					
+				}
+		
+		
+		//Passt das Zielschiff ab.
+		
+				function meetup {
+					parameter ziel is target.
+					lock steering to lookdirup(ship:orbit:velocity:orbit,ship:facing:topvector).
+					stillstand().
+					
+					add node(time:seconds+60,0,0,0).
+
+					lock abstand to (positionat(ziel,time:seconds + turns * nextnode:orbit:period) - positionat(ship,time:seconds + turns * nextnode:orbit:period)):mag.
+					set turnticker to 1.
+					set turns to 1.
+					set laststate to abstand + 1.
+					set ticker to 5.
+					
+					print"check".
+					
+					until false {
+						
+						
+						until abs(ticker) < 0.001 or abs(nextnode:prograde) > 25	{
+							if laststate < abstand {
+								set ticker to ticker / -2.
+							}
+							set laststate to abstand.
+							set nextnode:prograde to nextnode:prograde + ticker.
+							print abstand.
+						}
+
+						if abs(nextnode:prograde) > 25 set turns to turns + 1.
+
+						else break.
+						
+						set nextnode:prograde to nextnode:prograde - ticker * 2.
+					}
+					
+					set laststate to abstand +1.
+					set timeticker to 10 / nextnode:orbit:period.
+					
+					until nextnode:deltav:mag < 0.1 {
+						clearscreen.
+						translate(nextnode:deltav).
+						set laststate to abstand.
+						set turns to turns + timeticker.
+						if laststate < abstand set timeticker to timeticker * -1.
+
+						print abstand.
+						print turns.
+					}
+					
+					print abstand.
+					print turns.
+					
+					set ship:control:neutralize to true.
+					remove nextnode.
+					wait 0.1.
+					
+					add node(time:seconds+turns*ship:orbit:period,0,0,0).
+					
+				}
+		
+		
+		
+		
+		
 		

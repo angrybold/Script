@@ -1,7 +1,11 @@
+run lib.
+if hasnextnode() = false {
+	add node(time:seconds + 100,0,0,0).
 
-	add node(0,0,0,0).
-	set nextnode:eta to 100.
-	set stepcheck to 0.
+	}
+	
+set stepcheck to 0.
+run lib.
 
 	
 	
@@ -47,20 +51,13 @@ until stepcheck = 1 {
 
 RCS on.
 
-if nextnode:deltav:mag > 5{
+
 	clearscreen.
 	print "fuehre maneuver aus".
-	run maneuvernode.
-}
+	maneuvernode().
 
-else {
-	clearscreen.
-	set steervec to nextnode:deltav.
-	lock steering to lookdirup(steervec,ship:facing:topvector).
-	wait 20.
-	remove nextnode.
-	print "maneuver bitte manuell ausführen".
-}
+
+
 
 
 until stepcheck = 2 {

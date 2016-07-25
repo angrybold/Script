@@ -32,7 +32,7 @@ until ticker < 0.5 {
 }
 
 lock steering to nextnode:deltav.
-burntimeFK.
+burntimeFK().
 set laststate2 to abs(apoapsis-periapsis)+1.
 
 until burntime/3*2 > nextnode:eta or abs(apoapsis-periapsis) > laststate2 {
@@ -58,7 +58,7 @@ until burntime/3*2 > nextnode:eta or abs(apoapsis-periapsis) > laststate2 {
 
 	}
 	
-	burntimeFK.									
+	burntimeFK().									
 	set laststate2 to abs(apoapsis-periapsis).
 }
 
